@@ -20,11 +20,12 @@ ssize_t Write(int fd, const void *ptr, size_t nbytes);
 int Close(int fd);
 ssize_t Readn(int fd, void *vptr, size_t n);
 ssize_t Writen(int fd, const void *vptr, size_t n);
-ssize_t my_read(int fd, char *ptr);
+static ssize_t my_read(int fd, char *ptr);
 ssize_t Readline(int fd, void *vptr, size_t maxlen);
 int Epoll_create(int size);
 int Epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
 int Epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
 ssize_t Recv(int fd, void *buf, size_t n, int flags);
+ssize_t Send(int __fd, const void *__buf, size_t __n, int __flags);
 
 #endif

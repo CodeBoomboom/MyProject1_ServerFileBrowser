@@ -8,12 +8,12 @@
 ********************************************************************/
 #include<stdio.h>
 #include<stdlib.h>
+#include<unistd.h>
 #include<sys/epoll.h>
 #include<sys/socket.h>
 #include<sys/types.h>
 #include<errno.h>
 #include"wrap.h"
-
 
 void perr_exit(const char *s)
 {
@@ -459,24 +459,36 @@ int Epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)
 ********************************************************************/
 ssize_t Recv(int fd, void *buf, size_t n, int flags)
 {
-	int n;
-	if((n=recv(fd,buf,n,flags)) < 0)
+	ssize_t i;
+	if((i = recv(fd,buf,n,flags)) < 0)
 	{
 		perr_exit("recv error");
 	}
-	return n;
+	return i;
 }
 
 /********************************************************************
-@FunName:
-@Input:  None
+@FunName:ssize_t send (int __fd, const void *__buf, size_t __n, int __flags);
+@Input:  fd:发送的对端fd
+		 buf：数据缓冲区
+		 n:数据缓冲区大小
+		 flags：flags：一些标志位。具体看manpage，通常为0
 @Output: None
-@Retuval:None
-@Notes:  None
+@Retuval:实际发送的字节数
+@Notes:  网络通信数据发送函数
 @Author: XiaoDexin
 @Email:  xiaodexin0701@163.com
 @Time:   2022/04/18 15:06:47
 ********************************************************************/
+ssize_t Send(int fd, const void *buf, size_t n, int flags)
+{
+	ssize_t i;
+	if((i = send(fd,buf,n,flags)) < 0)
+	{
+		perr_exit("send error");
+	}
+	return i;
+}
 
 
 
