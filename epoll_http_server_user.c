@@ -17,6 +17,7 @@
 #include<sys/epoll.h>
 #include<dirent.h>
 #include<errno.h>
+#include<ctype.h>
 #include"wrap.h"
 #include"epoll_http_server_user.h"
 
@@ -63,9 +64,9 @@ void epoll_run(int port)
             else{
 
                 //读数据
-                printf("********开始读数据之前，实际满足监听的个数(Epoll_wait返回值ret)=%d********\n",ret);
+                printf("开始读数据之前，实际满足监听的个数(Epoll_wait返回值ret)=%d\n",ret);
                 do_read(pev->data.fd, epfd);
-                printf("********读数据结束********\n");
+                //printf("********读数据结束********\n");
             }
         }
     }
@@ -128,6 +129,7 @@ void do_accept(int lfd, int epfd)
     socklen_t len = sizeof(client);
     int cfd = Accept(lfd,(struct sockaddr*)&client,&len);
 
+    printf("\n*********************新客户端连接*****************************\n");
     //打印连接的客户端信息
     char ip[64] = {0};
     printf("新连接的客户端IP：%s, 端口号：%d, cfd =%d\n",
@@ -160,6 +162,7 @@ void do_accept(int lfd, int epfd)
 ********************************************************************/
 void do_read(int cfd, int epfd)
 {
+    printf("\n*********************开始读客户端请求消息*********************\n");
     //将浏览器发来的数据读到buf（line）中
     char line[1024] = {0};
     //读请求行 
@@ -168,8 +171,8 @@ void do_read(int cfd, int epfd)
         printf("客户端断开了连接.........\n");
         disconnect(cfd, epfd);  //关闭套接字，cfd从epoll上del
     } else {
-        printf("请求行数据：%s", line);
-        printf("******** 请求头 ********\n");
+        printf("客户端请求行数据：%s", line);
+        printf("客户端请求头、空行等其他数据读取....\n");
         //还有数据没读完，继续读走
         while(1){
             char buf[1024] = {0};
@@ -180,17 +183,20 @@ void do_read(int cfd, int epfd)
                 break;
             }
         }
-        printf("******** The End ********");
+        printf("*********************客户端请求消息读取完成*******************\n");
     }
 
+    printf("\n*********************开始解析处理客户端请求消息***************\n");
     //判断get请求
-    if(strncasecmp("get",line, 3) == 0){
+    if(strncasecmp("get",line, 3) == 0){ //strncasecmp用来比较两个字符串的前n个字符是否一样，忽略大小写
         // 请求行: get /hello.c http/1.1 
         //处理http请求
         http_request(line, cfd);
 
         //处理完关闭
         disconnect(cfd, epfd);
+    } else {
+        printf("不是GET请求!\n\n");
     }
 
 }
@@ -268,7 +274,7 @@ void http_request(const char* request, int cfd)
     //拆分http请求行
     char method[12], path[1024], protocol[12];
     sscanf(request, "%[^ ] %[^ ] %[^ ]", method, path, protocol); //取request中的制定数据，正则表达式[^ ]:依次取除空格之外的数据
-    printf("method = %s, path = %s, protocol = %s\n", method, path, protocol);
+    printf("method = %s, path = %s, protocol = %s", method, path, protocol);
 
     //若请求路径中有中文，则转码 将不能识别的中文乱码(URL) -> 中文
     //解码 %23 %24 %5f
@@ -282,23 +288,26 @@ void http_request(const char* request, int cfd)
         file = "./";
     }
 
+
     //用stat函数获取文件属性
     struct stat st;
     int ret = stat(file, &st);
     if(ret == -1){
         //若出错（无此文件或目录），则跳转到404 not found
-        send_error(cfd, "404", "Not Found", "NO such file or direntry");
+        send_error(cfd, 404, "Not Found", "NO such file or direntry");
         return;
     }
 
     //判断是目录还是文件
     if(S_ISDIR(st.st_mode)){//目录
         //发送头信息
+        printf("*********************客户端请求消息处理完成, 请求的是目录*****\n\n");
         send_respond_head(cfd, 200, "OK", get_file_type(".html"), -1);
         //发送目录信息
         send_dir(cfd, file);
     }else if(S_ISREG(st.st_mode)){  //文件
         //发送消息报头
+        printf("*********************客户端请求消息处理完成, 请求的是文件*****\n\n");
         send_respond_head(cfd, 200, "OK", get_file_type(file), st.st_size);
         //发送文件内容
         send_file(cfd, file);
@@ -384,7 +393,7 @@ void send_respond_head(int cfd, int no, const char * desp, const char *type, lon
 ********************************************************************/
 void send_dir(int cfd, const char* dirname)
 {
-    printf("请求的是目录，开始发送目录信息...");
+    printf("\n*********************开始发送目录信息*************************\n");
     int i, ret;
     //拼一个html页面<table></table>
     char buf[4096] = {0};
@@ -437,7 +446,7 @@ void send_dir(int cfd, const char* dirname)
     sprintf(buf+strlen(buf),"</table></body></html>");
     Send(cfd, buf, strlen(buf), 0);
 
-    printf("目录信息发送完成！");
+    printf("*********************目录信息发送完成*************************\n");
 }
 
 /********************************************************************
@@ -453,6 +462,8 @@ void send_dir(int cfd, const char* dirname)
 ********************************************************************/
 void send_file(int cfd, const char* filename)
 {
+    printf("\n*********************开始发送文件信息*************************\n");
+    printf("文件名: %s\n", filename);
     //打开文件
     int fd = open(filename, O_RDONLY);
     if(fd == -1) {   
@@ -477,6 +488,7 @@ void send_file(int cfd, const char* filename)
         }
     }
     Close(fd);
+    printf("*********************文件信息发送完成*************************\n");
 }
 
 /********************************************************************
